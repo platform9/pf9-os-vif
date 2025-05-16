@@ -289,6 +289,13 @@ class DatapathOffloadRepresentor(DatapathOffloadBase):
         'representor_address': fields.StringField(nullable=True),
     }
 
+@base.VersionedObjectRegistry.register
+class VIFCilium(VIFBase):
+    """Minimal, no-op port profile for Cilium/TAP use cases."""
+    VERSION = '1.0'
+    fields = {}
+
+
 
 @base.VersionedObjectRegistry.register
 class VIFPortProfileBase(osv_base.VersionedObject,
@@ -607,3 +614,10 @@ class VIFPortProfileK8sDPDK(VIFPortProfileBase):
         else:
             super(VIFPortProfileK8sDPDK, self).obj_make_compatible(
                 primitive, '1.1')
+
+
+@base.VersionedObjectRegistry.register
+class VIFPortProfileCilium(VIFPortProfileBase):
+    """Minimal, no-op port profile for Cilium/TAP use cases."""
+    VERSION = '1.0'
+    fields = {}

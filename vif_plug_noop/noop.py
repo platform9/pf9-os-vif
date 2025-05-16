@@ -19,6 +19,11 @@
 from os_vif import objects
 from os_vif import plugin
 
+from oslo_config import cfg
+from oslo_log import log as logging
+from nova.privsep import linux_net
+
+LOG = logging.getLogger(__name__)
 
 class NoOpPlugin(plugin.PluginBase):
     """A no op plugin
@@ -30,19 +35,48 @@ class NoOpPlugin(plugin.PluginBase):
 
     """
 
+    @classmethod
+    def load(cls, plugin_name, config=None):
+        return cls(config)
+    
+    def __init__(self, config=None):
+        self.config = config or {}
+
     def describe(self):
         return objects.host_info.HostPluginInfo(
-            plugin_name="noop",
-            vif_info=[
-                objects.host_info.HostVIFInfo(
-                    vif_object_name=objects.vif.VIFVHostUser.__name__,
-                    min_version="1.0",
-                    max_version="1.0",
-                    supported_port_profiles=[])
-            ])
+            plugin_name="cilium",
+            vif_info=[],
+        )
 
     def plug(self, vif, instance_info):
-        pass
+        devname = getattr(vif, "dev_name", None)
+        mac = getattr(vif, "address", None)
+
+        if not devname or not mac:
+            raise Exception(f"Cilium plugin: Missing dev_name or address (dev_name={devname}, mac={mac})")
+
+        LOG.info("Cilium plugin: Creating TAP device %s with MAC %s", devname, mac)
+        linux_net.create_tap_dev(devname, mac, multiqueue=False)
+
+        # Set default MTU if not provided
+        mtu = getattr(vif.network, "mtu", 1500)  # Default to 1500
+        try:
+            linux_net.set_device_mtu(devname, mtu)
+        except Exception as e:
+            LOG.warning("Failed to set MTU on %s: %s", devname, str(e))
+
+        try:
+            linux_net.set_device_enabled(devname)
+        except Exception as e:
+            LOG.warning("Failed to enable device %s: %s", devname, str(e))
 
     def unplug(self, vif, instance_info):
-        pass
+        devname = getattr(vif, "dev_name", None)
+        if devname:
+            LOG.info("Cilium plugin: Deleting TAP device %s", devname)
+            try:
+                linux_net.delete_net_dev(devname)
+            except Exception as e:
+                LOG.warning("Failed to delete TAP device %s: %s", devname, str(e))
+        else:
+            LOG.warning("Cilium plugin: No dev_name to unplug")
