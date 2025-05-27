@@ -65,6 +65,15 @@ class NoOpPlugin(plugin.PluginBase):
         except Exception as e:
             LOG.warning("Failed to set MTU on %s: %s", devname, str(e))
 
+        ip_address = vif.details.get('ip_address')
+        prefixlen = vif.details.get('prefixlen')
+        if ip_address and prefixlen:
+            LOG.info("Assigning IP %s to device %s", ip_address, devname)
+            try:
+                linux_net.add_ip_to_dev(devname, ip_address, prefixlen)  # Adjust prefix length
+            except Exception as e:
+                LOG.warning("Failed to assign IP %s to %s: %s", ip_address, devname, str(e))
+
         try:
             linux_net.set_device_enabled(devname)
         except Exception as e:
