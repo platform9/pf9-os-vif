@@ -293,7 +293,12 @@ class DatapathOffloadRepresentor(DatapathOffloadBase):
 class VIFCilium(VIFBase):
     """Minimal, no-op port profile for Cilium/TAP use cases."""
     VERSION = '1.0'
-    fields = {}
+    fields = {
+        'ip_address': fields.IPAddressField(nullable=True),
+        'prefixlen': fields.IntegerField(nullable=True),
+        'devname': fields.StringField(nullable=True),
+        'port_filter': fields.BooleanField(default=False),
+    }
 
 
 
